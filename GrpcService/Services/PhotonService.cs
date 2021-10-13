@@ -33,7 +33,7 @@ namespace GrpcService1
             this.client.AddCallbackTarget(this);
             this.client.StateChanged += this.OnStateChange;
 
-            Console.WriteLine($"PhotonUser. {JsonConvert.SerializeObject(phoConfig)}");
+            //_logger.LogDebug($"PhotonUser. {JsonConvert.SerializeObject(phoConfig)}");
 
             this.client.AppId = photonConfig.AppId;
 
@@ -59,7 +59,7 @@ namespace GrpcService1
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("PhotonService @{time} ", DateTimeOffset.Now);
+            _logger.LogInformation("PhotonService ExecuteAsync@{time} ", DateTimeOffset.Now);
             while (!stoppingToken.IsCancellationRequested)
             {
                 //_logger.LogInformation("PhotonService @{time} ", DateTimeOffset.Now);

@@ -30,6 +30,7 @@ namespace GrpcService1
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
+                    //webBuilder.UseUrls("http://localhost:5003", "https://localhost:5004");
                 });
     }
 }
