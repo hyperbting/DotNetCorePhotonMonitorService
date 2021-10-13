@@ -13,7 +13,13 @@ namespace GrpcService1
 {
     public class AuthService: BackgroundService
     {
+        #region OauthResponse
         public static OauthResponse oauthResp;
+        public static void CleanOauthResponse()
+        {
+            oauthResp = null;
+        }
+
         public static bool TryGetAuthInfo(out string jwtstring)
         {
             jwtstring = "";
@@ -24,6 +30,7 @@ namespace GrpcService1
             jwtstring = oauthResp.access_token;
             return true;
         }
+        #endregion OauthResponse
 
         private readonly ILogger<AuthService> _logger;
         AuthConfig authConfig;
@@ -78,12 +85,11 @@ namespace GrpcService1
 
             var responseString = await response.Content.ReadAsStringAsync();
 
-            Console.WriteLine(responseString);
+            _logger.LogDebug(responseString);
 
             AuthService.oauthResp = JsonConvert.DeserializeObject<OauthResponse>(responseString);
 
-            Console.WriteLine(oauthResp);
+            _logger.LogDebug($"{oauthResp}");
         }
     }
-
 }

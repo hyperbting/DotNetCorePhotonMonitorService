@@ -38,10 +38,6 @@ namespace GrpcService1
             this.client.AppId = photonConfig.AppId;
 
             //_ = TryConnectToMasterServer(photonConfig.Region[0]);
-
-            //// for Photon
-            Thread t = new Thread(this.Loop);
-            t.Start();
         }
 
         ~PhotonService()
@@ -54,50 +50,43 @@ namespace GrpcService1
 
         private void OnStateChange(ClientState arg1, ClientState arg2)
         {
-            Console.WriteLine(arg1 + " -> " + arg2);
+            _logger.LogInformation($"PhotonStateChanges: {arg1} -> { arg2}");
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("PhotonService ExecuteAsync@{time} ", DateTimeOffset.Now);
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                //_logger.LogInformation("PhotonService @{time} ", DateTimeOffset.Now);
-                try
-                {
-                    await TryConnectToMasterServer(photonConfig.Region[0]);
-                    await Task.Delay(10000, stoppingToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-            }
+            _ = AsyncLoop(stoppingToken);
+
+            _ = TryConnectToMasterServer(photonConfig.Region[0], stoppingToken);            
         }
 
-        private void Loop(object state)
+        async Task AsyncLoop(CancellationToken stoppingToken)
         {
-            while (true)
+            _logger.LogDebug("PhotonService AsyncLoop Start@{time} ", DateTimeOffset.Now);
+            while (!stoppingToken.IsCancellationRequested)
             {
                 this.client.Service();
-                Thread.Sleep(33);
+                await Task.Delay(33);
             }
+            _logger.LogDebug("PhotonService AsyncLoop End@{time} ", DateTimeOffset.Now);
         }
 
         #region IConnectionCallbacks
         void IConnectionCallbacks.OnConnected()
         {
-            _logger.LogInformation("OnConnected");
+            _logger.LogDebug("OnConnected");
         }
 
         void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
         {
-            _logger.LogInformation($"OnDisconnected {cause}");
+            _logger.LogDebug($"OnDisconnected {cause}");
+            connectionTCS?.TrySetResult(false);
         }
 
         void IConnectionCallbacks.OnConnectedToMaster()
         {
-            _logger.LogInformation($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
+            _logger.LogDebug($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
 
             connectionTCS?.TrySetResult(true);
 
@@ -107,114 +96,116 @@ namespace GrpcService1
         #region Authentication
         void IConnectionCallbacks.OnCustomAuthenticationFailed(string debugMessage)
         {
-            throw new NotImplementedException();
+            _logger.LogWarning($"OnCustomAuthenticationFailed {debugMessage}");
+            connectionTCS?.TrySetResult(false);
+
+            AuthService.CleanOauthResponse();
         }
 
         void IConnectionCallbacks.OnCustomAuthenticationResponse(Dictionary<string, object> data)
         {
-            throw new NotImplementedException();
+            _logger.LogWarning($"OnCustomAuthenticationResponse");
+            foreach(var kvp in data)
+                _logger.LogWarning($"{kvp.Key}:{kvp.Value}");
         }
         #endregion
 
         void IConnectionCallbacks.OnRegionListReceived(RegionHandler regionHandler)
         {
-            _logger.LogInformation("OnRegionListReceived");
+            _logger.LogDebug("OnRegionListReceived");
         }
         #endregion
 
         TaskCompletionSource<bool> connectionTCS;
-        public async Task TryConnectToMasterServer(string targetRegion)
+        public async Task TryConnectToMasterServer(string targetRegion, CancellationToken stoppingToken)
         {
-            if (this.client.IsConnectedAndReady)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogDebug($"TryConnectToMasterServer AlreadyInServer {this.client.State}");
-                return;
-            }
-
-            _logger.LogDebug("TryConnectToMasterServer");
-            
-            var jwtString = "";
-            if (!AuthService.TryGetAuthInfo(out jwtString))
-            {
-                return;
-            }
-
-            _logger.LogDebug("TryConnectToMasterServer.TrySetAuthenticationValues");
-            //TrySetAuthenticationValues();
-            connectionTCS = new TaskCompletionSource<bool>();
-            this.client.ConnectToRegionMaster(targetRegion);
-
-            var cts = new CancellationTokenSource();
-            cts.CancelAfter(10000);
-
-            _logger.LogDebug("TryConnectToMasterServer Wait for ConnectToRegionMaster");
-            //wait until connected or cancelled
-            while (connectionTCS != null && !connectionTCS.Task.IsCompleted)
-            {
-                try 
+                if (this.client.IsConnectedAndReady)
                 {
-                    await Task.Delay(100);
+                    _logger.LogDebug($"TryConnectToMasterServer AlreadyInServer {this.client.State}");
+                    await Task.Delay(1000);
+                    continue;
                 }
-                catch (TaskCanceledException)
-                {
-                    _logger.LogWarning("TryConnectToMasterServer Cancelled");
-                    connectionTCS.TrySetResult(false);
 
-                    return;
+                _logger.LogInformation("PhotonService.TryConnectToMasterServer @{time} ", DateTimeOffset.Now);
+
+                var jwtString = "";
+                if (!AuthService.TryGetAuthInfo(out jwtString))
+                {
+                    _logger.LogDebug($"TryConnectToMasterServer NoAuthFound {this.client.State}");
+                    await Task.Delay(1000);
+                    continue;
                 }
+
+                _logger.LogDebug("TryConnectToMasterServer.TrySetAuthenticationValues");
+                TrySetAuthenticationValues(jwtString);
+
+                connectionTCS = new TaskCompletionSource<bool>();
+                this.client.ConnectToRegionMaster(targetRegion);
+
+                var cts = new CancellationTokenSource();
+                cts.CancelAfter(10000);
+
+                _logger.LogDebug("TryConnectToMasterServer Wait for ConnectToRegionMaster");
+                //wait until connected or cancelled
+                while (connectionTCS != null && !connectionTCS.Task.IsCompleted && !cts.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(100);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        _logger.LogWarning("TryConnectToMasterServer Cancelled");
+                        connectionTCS.TrySetResult(false);
+
+                        return;
+                    }
+                }
+
+                await Task.Delay(3000);
             }
         }
 
-        bool TrySetAuthenticationValues(string userID, string password)
+        bool TrySetAuthenticationValues(string secretData)
         {
             AuthenticationValues authValues = new AuthenticationValues();
             authValues.AuthType = CustomAuthenticationType.Custom;
-            //authValues.AddAuthParameter("user", userID);
-            //authValues.AddAuthParameter("pass", password);
 
-            authValues.AddAuthParameter("type", "token");
-            authValues.AddAuthParameter("format", "photon");
-            authValues.AddAuthParameter("data", password);
-            authValues.UserId = userID; // this is required when you set UserId directly from client and not from web service
+            var auth0Data = new Dictionary<string, object>
+            {
+                { "type", "token" },
+                { "format", "photon" },
+                { "data", secretData }
+            };
+
+            authValues.SetAuthPostData(auth0Data);
 
             this.client.AuthValues = authValues;
-
             return true;
         }
-
-        //bool CanConnect()
-        //{
-        //    switch (this.client.State)
-        //    {
-        //        case ClientState.Disconnected:
-        //        case ClientState.PeerCreated:
-        //            return true;
-
-        //    }
-
-        //    return false;
-        //}
 
         #region ILobbyCallbacks
         void ILobbyCallbacks.OnJoinedLobby()
         {
-            _logger.LogInformation("OnJoinedLobby");
+            _logger.LogDebug("OnJoinedLobby");
         }
 
         void ILobbyCallbacks.OnLeftLobby()
         {
-            _logger.LogInformation("OnLeftLobby");
+            _logger.LogDebug("OnLeftLobby");
         }
 
         void ILobbyCallbacks.OnRoomListUpdate(List<RoomInfo> roomList)
         {
-            _logger.LogInformation($"OnRoomListUpdate {roomList.Count}");
+            _logger.LogDebug($"OnRoomListUpdate {roomList.Count}");
             UpdateCachedRoomList(roomList);
         }
 
         void ILobbyCallbacks.OnLobbyStatisticsUpdate(List<TypedLobbyInfo> lobbyStatistics)
         {
-            _logger.LogInformation("OnLobbyStatisticsUpdate");
+            _logger.LogDebug("OnLobbyStatisticsUpdate");
         }
         #endregion
 
@@ -225,24 +216,19 @@ namespace GrpcService1
                 region=this.client.CloudRegion.TrimEnd('/','*'),
             };
 
-            //Console.WriteLine($"GetAllCachedRoom Begin");
-            //var sb = new StringBuilder();
+            //_logger.LogDebug($"GetAllCachedRoom Begin");
 
             List<InGameUserCount> iguc = new List<InGameUserCount>();
             foreach (var kvp in cachedRoomList)
             {
                 var info = kvp.Value;
-                //sb.Append($" {info.Name}:{info.PlayerCount}");
                 iguc.Add(new InGameUserCount() {
                     roomName=info.Name,
                     count=info.PlayerCount
                 });
             }
-            res.uCounts = iguc.ToArray();
 
-            //if (sb.Length > 0)
-            //    Console.WriteLine(sb.ToString());
-            //Console.WriteLine($"GetAllCachedRoom End");
+            res.uCounts = iguc.ToArray();
 
             return res;
         }
@@ -252,7 +238,7 @@ namespace GrpcService1
             for (int i = 0; i < roomList.Count; i++)
             {
                 RoomInfo info = roomList[i];
-                //Console.WriteLine($"UpdateCachedRoomList {i}:" + info.ToString());
+                _logger.LogDebug($"UpdateCachedRoomList {i}:" + info.ToString());
 
                 if (info.RemovedFromList)
                 {
@@ -268,6 +254,26 @@ namespace GrpcService1
 
             var resString = JsonConvert.SerializeObject(res);
             _logger.LogInformation(resString);
+        }
+
+        bool ShouldTryConnectMaster()
+        {
+            if (this.client == null)
+            {
+                return false;
+            }
+
+            switch (this.client.State)
+            {
+                case ClientState.PeerCreated:
+                case ClientState.Disconnected:
+                    return true;
+                default:
+                    _logger.LogDebug($"ShouldTryConnectMaster @{ this.client.State.ToString()}");
+                    break;
+            }
+
+            return false;
         }
     }
 
