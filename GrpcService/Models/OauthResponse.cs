@@ -16,11 +16,14 @@ public class OauthResponse
     public string token_type;
     public int expires_in;
 
-    public void TryParseJWT()
+    public string error;
+    public string error_description;
+
+    public bool IsValid() 
     {
-        if (string.IsNullOrEmpty(access_token))
-            return;
+        if (!string.IsNullOrEmpty(error) || !string.IsNullOrEmpty(error_description))
+            return false;
 
-
+        return true;
     }
 }

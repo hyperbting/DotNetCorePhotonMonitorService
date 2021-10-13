@@ -24,7 +24,7 @@ namespace GrpcService1
                 {
                     configApp.SetBasePath(Directory.GetCurrentDirectory());
                     configApp.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-                    configApp.AddJsonFile( $"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true);
+                    configApp.AddJsonFile( $"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange:true);
                     Console.WriteLine(hostContext.HostingEnvironment.EnvironmentName);
                 })
                 .ConfigureWebHostDefaults(webBuilder =>

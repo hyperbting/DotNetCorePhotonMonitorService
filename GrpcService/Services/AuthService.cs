@@ -88,6 +88,12 @@ namespace GrpcService1
             _logger.LogDebug(responseString);
 
             AuthService.oauthResp = JsonConvert.DeserializeObject<OauthResponse>(responseString);
+            if (!AuthService.oauthResp.IsValid())
+            { 
+                _logger.LogWarning($"AuthService.PostAuth AuthNotValid");
+                AuthService.CleanOauthResponse();
+                await Task.Delay(5000);
+            }
 
             _logger.LogDebug($"{oauthResp}");
         }

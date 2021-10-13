@@ -128,8 +128,6 @@ namespace GrpcService1
                     continue;
                 }
 
-                _logger.LogInformation("PhotonService.TryConnectToMasterServer @{time} ", DateTimeOffset.Now);
-
                 var jwtString = "";
                 if (!AuthService.TryGetAuthInfo(out jwtString))
                 {
@@ -137,6 +135,8 @@ namespace GrpcService1
                     await Task.Delay(1000);
                     continue;
                 }
+
+                _logger.LogInformation("PhotonService.TryConnectToMasterServer @{time} ", DateTimeOffset.Now);
 
                 _logger.LogDebug("TryConnectToMasterServer.TrySetAuthenticationValues");
                 TrySetAuthenticationValues(jwtString);
@@ -238,7 +238,7 @@ namespace GrpcService1
             for (int i = 0; i < roomList.Count; i++)
             {
                 RoomInfo info = roomList[i];
-                _logger.LogDebug($"UpdateCachedRoomList {i}:" + info.ToString());
+                _logger.LogDebug($"UpdateCachedRoomList {i} mc:{info.masterClientId}:" + info.ToStringFull());
 
                 if (info.RemovedFromList)
                 {
@@ -252,8 +252,10 @@ namespace GrpcService1
 
             var res = GetAllCachedRoom();
 
-            var resString = JsonConvert.SerializeObject(res);
-            _logger.LogInformation(resString);
+            var resString = JsonConvert.SerializeObject(res, Formatting.Indented);
+            //Console.Clear();
+            _logger.LogInformation($"{DateTimeOffset.Now} \n {resString}");
+            
         }
 
         bool ShouldTryConnectMaster()
