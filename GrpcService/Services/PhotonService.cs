@@ -25,6 +25,8 @@ namespace GrpcService1
         {
             _logger = logger;
 
+            _logger.LogInformation("PhotonService Start @{time}", DateTimeOffset.Now);
+
             photonConfig = new PhotonConfig();
             phoConfig.GetSection(PhotonConfig.Photon).Bind(photonConfig);
 
@@ -38,12 +40,14 @@ namespace GrpcService1
             //_ = TryConnectToMasterServer(photonConfig.Region[0]);
 
             //// for Photon
-            //Thread t = new Thread(this.Loop);
-            //t.Start();
+            Thread t = new Thread(this.Loop);
+            t.Start();
         }
 
         ~PhotonService()
         {
+            _logger.LogInformation("PhotonService End @{time}", DateTimeOffset.Now);
+
             this.client.Disconnect();
             this.client.RemoveCallbackTarget(this);
         }
@@ -55,15 +59,14 @@ namespace GrpcService1
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("PhotonService @{time} ", DateTimeOffset.Now);
             while (!stoppingToken.IsCancellationRequested)
             {
-                this.client.Service();
-                Thread.Sleep(100);
-                //_logger.LogInformation("{time} ", DateTimeOffset.Now);
+                //_logger.LogInformation("PhotonService @{time} ", DateTimeOffset.Now);
                 try
                 {
                     await TryConnectToMasterServer(photonConfig.Region[0]);
-                    //await Task.Delay(10000, stoppingToken);
+                    await Task.Delay(10000, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -84,17 +87,20 @@ namespace GrpcService1
         #region IConnectionCallbacks
         void IConnectionCallbacks.OnConnected()
         {
-            Console.WriteLine("OnConnected");
+            _logger.LogInformation("OnConnected");
         }
 
         void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
         {
-            Console.WriteLine($"OnDisconnected {cause}");
+            _logger.LogInformation($"OnDisconnected {cause}");
         }
 
         void IConnectionCallbacks.OnConnectedToMaster()
         {
-            Console.WriteLine($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
+            _logger.LogInformation($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
+
+            connectionTCS?.TrySetResult(true);
+
             this.client.OpJoinLobby(new TypedLobby("default", LobbyType.Default));
         }
 
@@ -112,27 +118,49 @@ namespace GrpcService1
 
         void IConnectionCallbacks.OnRegionListReceived(RegionHandler regionHandler)
         {
-            Console.WriteLine("OnRegionListReceived");
+            _logger.LogInformation("OnRegionListReceived");
         }
         #endregion
 
-        TaskCompletionSource connectionTCS;
+        TaskCompletionSource<bool> connectionTCS;
         public async Task TryConnectToMasterServer(string targetRegion)
         {
-            _logger.LogDebug("TryConnectToMasterServer");
-
-            var jwtString = "";
-            if (AuthService.TryGetAuthInfo(out jwtString))
+            if (this.client.IsConnectedAndReady)
             {
-                TrySetAuthenticationValues();
-                connectionTCS = new TaskCompletionSource();
+                _logger.LogDebug($"TryConnectToMasterServer AlreadyInServer {this.client.State}");
+                return;
+            }
 
-                this.client.ConnectToRegionMaster(targetRegion);
+            _logger.LogDebug("TryConnectToMasterServer");
+            
+            var jwtString = "";
+            if (!AuthService.TryGetAuthInfo(out jwtString))
+            {
+                return;
+            }
 
-                //wait until connected
-                while (connectionTCS != null && !connectionTCS.Task.IsCompleted)
+            _logger.LogDebug("TryConnectToMasterServer.TrySetAuthenticationValues");
+            //TrySetAuthenticationValues();
+            connectionTCS = new TaskCompletionSource<bool>();
+            this.client.ConnectToRegionMaster(targetRegion);
+
+            var cts = new CancellationTokenSource();
+            cts.CancelAfter(10000);
+
+            _logger.LogDebug("TryConnectToMasterServer Wait for ConnectToRegionMaster");
+            //wait until connected or cancelled
+            while (connectionTCS != null && !connectionTCS.Task.IsCompleted)
+            {
+                try 
                 {
                     await Task.Delay(100);
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogWarning("TryConnectToMasterServer Cancelled");
+                    connectionTCS.TrySetResult(false);
+
+                    return;
                 }
             }
         }
@@ -168,25 +196,25 @@ namespace GrpcService1
         //}
 
         #region ILobbyCallbacks
-        public void OnJoinedLobby()
+        void ILobbyCallbacks.OnJoinedLobby()
         {
-            Console.WriteLine("OnJoinedLobby");
+            _logger.LogInformation("OnJoinedLobby");
         }
 
-        public void OnLeftLobby()
+        void ILobbyCallbacks.OnLeftLobby()
         {
-            Console.WriteLine("OnLeftLobby");
+            _logger.LogInformation("OnLeftLobby");
         }
 
-        public void OnRoomListUpdate(List<RoomInfo> roomList)
+        void ILobbyCallbacks.OnRoomListUpdate(List<RoomInfo> roomList)
         {
-            Console.WriteLine($"OnRoomListUpdate {roomList.Count}");
+            _logger.LogInformation($"OnRoomListUpdate {roomList.Count}");
             UpdateCachedRoomList(roomList);
         }
 
-        public void OnLobbyStatisticsUpdate(List<TypedLobbyInfo> lobbyStatistics)
+        void ILobbyCallbacks.OnLobbyStatisticsUpdate(List<TypedLobbyInfo> lobbyStatistics)
         {
-            Console.WriteLine("OnLobbyStatisticsUpdate");
+            _logger.LogInformation("OnLobbyStatisticsUpdate");
         }
         #endregion
 
@@ -238,8 +266,8 @@ namespace GrpcService1
 
             var res = GetAllCachedRoom();
 
-            //var resString = JsonConvert.SerializeObject(res);
-            //Console.WriteLine(resString);
+            var resString = JsonConvert.SerializeObject(res);
+            _logger.LogInformation(resString);
         }
     }
 
