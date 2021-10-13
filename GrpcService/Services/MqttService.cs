@@ -114,10 +114,10 @@ namespace GrpcService1
             //// https://github.com/chkr1011/MQTTnet/wiki/Client#consuming-messages
             mqttClient.UseApplicationMessageReceivedHandler(e =>
             {
-                var pl = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-
+                var pls = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                var pl = pls.Split('|');
                 var curr = DateTimeOffset.Now;
-                var delta = long.Parse(pl);
+                var delta = long.Parse(pl[0]);
                 delta = curr.ToUnixTimeMilliseconds() - delta;
 
                 _logger.LogInformation("### RECEIVED APPLICATION MESSAGE ### Delta:{delta} @{time} ", delta, curr);
@@ -158,20 +158,32 @@ namespace GrpcService1
                     continue;
                 }
                 string payload = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
+                var fakeData = buildFakeData(128, payload);
                 var message = new MqttApplicationMessageBuilder()
                 .WithTopic("hello/world/T1v10")
-                .WithPayload(payload)
+                .WithPayload(fakeData)
                 //.WithExactlyOnceQoS()
                 //.WithRetainFlag()
                 .Build();
 
-                _logger.LogDebug("PublisherActor Sending {msg} @{time}", payload, DateTimeOffset.Now);
+                _logger.LogDebug("PublisherActor Sending {msg} @{time}", message.ConvertPayloadToString(), DateTimeOffset.Now);
                 var res = await mqttClient.PublishAsync(message, stoppingToken); // Since 3.0.5 with CancellationToken
                 _logger.LogDebug("PublisherActor {code} {res} @{time}", res.ReasonCode, res.ReasonString, DateTimeOffset.Now);
 
                 await Task.Delay(1000);
             }
             _logger.LogDebug("PublisherActor End@{time}", DateTimeOffset.Now);
+        }
+
+        string buildFakeData(int tarLen, string str="")
+        {
+            str += "|";
+            while (str.Length < tarLen)
+                str += Guid.NewGuid().ToString();
+
+            // shrink to tarLen
+            str = str.Substring(0, tarLen);
+            return str;
         }
     }
 }
