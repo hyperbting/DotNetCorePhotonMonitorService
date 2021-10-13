@@ -121,10 +121,10 @@ namespace GrpcService1
                 delta = curr.ToUnixTimeMilliseconds() - delta;
 
                 _logger.LogInformation("### RECEIVED APPLICATION MESSAGE ### Delta:{delta} @{time} ", delta, curr);
-                _logger.LogDebug($"+ Topic = {e.ApplicationMessage.Topic}" +
-                    $"+ Payload = {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}" + 
-                    $"QoS = {e.ApplicationMessage.QualityOfServiceLevel}" + 
-                    $"+ Retain = {e.ApplicationMessage.Retain}");
+                _logger.LogDebug($"Topic:{e.ApplicationMessage.Topic}" +
+                    $", Payload:{Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}" + 
+                    $", QoS:{e.ApplicationMessage.QualityOfServiceLevel}" + 
+                    $", Retain:{e.ApplicationMessage.Retain}");
 
                 //// Task.Run(() => mqttClient.PublishAsync("hello/world/T1v10"));
             });
