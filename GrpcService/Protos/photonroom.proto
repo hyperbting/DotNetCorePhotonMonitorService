@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+option csharp_namespace = "GrpcService1";
+
+package photonroom;
+
+service ReportPhotoRoom {
+  rpc RequestRoomList (RoomListRequest) returns (RoomListReply);
+}
+
+message RoomListRequest {
+  string region = 1;
+}
+
+message RoomListReply {
+  string region = 1;
+  map<string, int32> count = 2;
+}
