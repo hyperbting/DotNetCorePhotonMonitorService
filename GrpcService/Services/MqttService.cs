@@ -27,8 +27,10 @@ namespace GrpcService1
 
             mqttConfig = new MQTTConfig();
             mqttserConfig.GetSection(MQTTConfig.MQTT).Bind(mqttConfig);
+            if (String.IsNullOrWhiteSpace(mqttConfig.ClientID))
+                mqttConfig.ClientID = Guid.NewGuid().ToString();
 
-            _logger.LogInformation("MqttService Start @{time}", DateTimeOffset.Now);
+            _logger.LogInformation("MqttService Start {clientID} @{time}", mqttConfig.ClientID, DateTimeOffset.Now);
 
             createMQTTClientToken = new CancellationTokenSource();
             _ = CreateMQTTClient(createMQTTClientToken.Token);
