@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos\greet.proto" GrpcServices="Server" />
+    <Protobuf Include="Protos\photonroom.proto" GrpcServices="Server" />
   </ItemGroup>
 
   <ItemGroup>
