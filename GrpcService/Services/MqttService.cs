@@ -150,11 +150,13 @@ namespace GrpcService1
         {
             _logger.LogInformation("PublisherActor Begin@{time}", DateTimeOffset.Now);
 
+            int counter = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
                 if (mqttClient == null || !mqttClient.IsConnected)
                 {
                     _logger.LogDebug("PublisherActor Waiting@{time}", DateTimeOffset.Now);
+                    await Task.Delay(1000);
                     continue;
                 }
                 string payload = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
@@ -166,11 +168,18 @@ namespace GrpcService1
                 //.WithRetainFlag()
                 .Build();
 
-                _logger.LogDebug("PublisherActor Sending {msg} @{time}", message.ConvertPayloadToString(), DateTimeOffset.Now);
+                _logger.LogDebug("PublisherActor Sending {cnt} {msg} @{time}", counter, message.ConvertPayloadToString(), DateTimeOffset.Now);
                 var res = await mqttClient.PublishAsync(message, stoppingToken); // Since 3.0.5 with CancellationToken
                 _logger.LogDebug("PublisherActor {code} {res} @{time}", res.ReasonCode, res.ReasonString, DateTimeOffset.Now);
 
-                await Task.Delay(1000);
+                if (counter >= 10000)
+                {
+                    counter = 0;
+                    await Task.Delay(10000);
+                }
+
+                counter++;
+                await Task.Delay(1);
             }
             _logger.LogDebug("PublisherActor End@{time}", DateTimeOffset.Now);
         }
