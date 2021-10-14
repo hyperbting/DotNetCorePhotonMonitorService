@@ -7,10 +7,13 @@ using System.Threading.Tasks;
 
 namespace GrpcService1
 {
-    public class PhotonReporterService : ReportPhotoRoom.ReportPhotoRoomBase
+    /// <summary>
+    /// Reporter with gRPC protocol
+    /// </summary>
+    public class ReporterService : ReportPhotonRoom.ReportPhotonRoomBase
     {
-        private readonly ILogger<PhotonReporterService> _logger;
-        public PhotonReporterService(ILogger<PhotonReporterService> logger)
+        private readonly ILogger<ReporterService> _logger;
+        public ReporterService(ILogger<ReporterService> logger)
         {
             _logger = logger;
         }

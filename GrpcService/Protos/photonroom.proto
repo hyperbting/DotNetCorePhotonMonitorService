@@ -4,7 +4,7 @@ option csharp_namespace = "GrpcService1";
 
 package photonroom;
 
-service ReportPhotoRoom {
+service ReportPhotonRoom {
   rpc RequestRoomList (RoomListRequest) returns (RoomListReply);
 }
 
