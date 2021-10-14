@@ -11,4 +11,5 @@ public class MQTTConfig
     public string ClientID { get; set; }
 
     public bool Publisher { get; set; }
+    public int PublisherSendDelay { get; set; }
 }
