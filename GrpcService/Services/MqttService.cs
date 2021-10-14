@@ -114,13 +114,17 @@ namespace GrpcService1
             //// https://github.com/chkr1011/MQTTnet/wiki/Client#consuming-messages
             mqttClient.UseApplicationMessageReceivedHandler(e =>
             {
-                var pl = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-
+                var pls = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                var pl = pls.Split('|');
                 var curr = DateTimeOffset.Now;
-                var delta = long.Parse(pl);
+                var delta = long.Parse(pl[0]);
                 delta = curr.ToUnixTimeMilliseconds() - delta;
 
-                _logger.LogInformation("### RECEIVED APPLICATION MESSAGE ### Delta:{delta} @{time} ", delta, curr);
+                var serialNumber = -1;
+                if (pl.Length>=2)
+                    serialNumber = int.Parse(pl[1]);
+
+                _logger.LogInformation("### RECEIVED APPLICATION MESSAGE ### {serial} Delta:{delta} @{time} ", serialNumber, delta, curr);
                 _logger.LogDebug($"Topic:{e.ApplicationMessage.Topic}" +
                     $", Payload:{Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}" + 
                     $", QoS:{e.ApplicationMessage.QualityOfServiceLevel}" + 
@@ -146,32 +150,62 @@ namespace GrpcService1
             _logger.LogInformation("SubscriberActor End@{time}", DateTimeOffset.Now);
         }
 
+        int maxCounter = 10000;
+        long beginTimeMS = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         async Task PublisherActor(CancellationToken stoppingToken)
         {
             _logger.LogInformation("PublisherActor Begin@{time}", DateTimeOffset.Now);
 
+            int counter = 0;
             while (!stoppingToken.IsCancellationRequested)
             {
                 if (mqttClient == null || !mqttClient.IsConnected)
                 {
                     _logger.LogDebug("PublisherActor Waiting@{time}", DateTimeOffset.Now);
+                    await Task.Delay(1000);
                     continue;
                 }
-                string payload = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString();
+                string payload = DateTimeOffset.Now.ToUnixTimeMilliseconds().ToString() + "|"+ counter.ToString();
+                var fakeData = buildFakeData(128, payload);
                 var message = new MqttApplicationMessageBuilder()
                 .WithTopic("hello/world/T1v10")
-                .WithPayload(payload)
+                .WithPayload(fakeData)
                 //.WithExactlyOnceQoS()
                 //.WithRetainFlag()
                 .Build();
 
-                _logger.LogDebug("PublisherActor Sending {msg} @{time}", payload, DateTimeOffset.Now);
+                _logger.LogDebug("PublisherActor Sending {cnt} {msg} @{time}", counter, message.ConvertPayloadToString(), DateTimeOffset.Now);
                 var res = await mqttClient.PublishAsync(message, stoppingToken); // Since 3.0.5 with CancellationToken
-                _logger.LogDebug("PublisherActor {code} {res} @{time}", res.ReasonCode, res.ReasonString, DateTimeOffset.Now);
+                if(!String.IsNullOrWhiteSpace(res.ReasonString))
+                    _logger.LogWarning("PublisherActor {code} {res} @{time}", res.ReasonCode, res.ReasonString, DateTimeOffset.Now);
 
-                await Task.Delay(1000);
+                if (counter >= maxCounter)
+                {
+                    var sendingPeriod = DateTimeOffset.Now.ToUnixTimeMilliseconds() - beginTimeMS;
+                    _logger.LogWarning("PublisherActor Finished sending {mCoun} in {period}ms @{time}", maxCounter, sendingPeriod, DateTimeOffset.Now);
+                    counter = 0;
+
+                    await Task.Delay(10000);
+
+                    beginTimeMS = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+                }
+
+                counter++;
+                if (mqttConfig.PublisherSendDelay>0)
+                    await Task.Delay(mqttConfig.PublisherSendDelay);
             }
             _logger.LogDebug("PublisherActor End@{time}", DateTimeOffset.Now);
+        }
+
+        string buildFakeData(int tarLen, string str="")
+        {
+            str += "|";
+            while (str.Length < tarLen)
+                str += Guid.NewGuid().ToString();
+
+            // shrink to tarLen
+            str = str.Substring(0, tarLen);
+            return str;
         }
     }
 }
