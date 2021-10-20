@@ -1,43 +1,43 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
 using Newtonsoft.Json;
+
+using Photon.Realtime;
+using PhotonRoomListGrpcService.Configs;
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Photon.Realtime;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
-namespace GrpcService1
+namespace PhotonRoomListGrpcService
 {
     public class PhotonService : BackgroundService, IConnectionCallbacks, ILobbyCallbacks//, IInRoomCallbacks, IMatchmakingCallbacks
     {
         private readonly ILogger<PhotonService> _logger;
         private readonly PhotonConfig photonConfig;
+        private readonly IRoomList photonRoomListStorage;
 
         private readonly LoadBalancingClient client = new LoadBalancingClient();
 
-        public PhotonService(ILogger<PhotonService> logger, IConfiguration phoConfig)
+        public PhotonService(ILogger<PhotonService> logger, IConfiguration phoConfig, IRoomList roomListStorage)
         {
             _logger = logger;
-
             _logger.LogInformation("PhotonService Start @{time}", DateTimeOffset.Now);
 
             photonConfig = new PhotonConfig();
             phoConfig.GetSection(PhotonConfig.Photon).Bind(photonConfig);
 
+            photonRoomListStorage = roomListStorage;
+
             this.client.AddCallbackTarget(this);
             this.client.StateChanged += this.OnStateChange;
 
-            //_logger.LogDebug($"PhotonUser. {JsonConvert.SerializeObject(phoConfig)}");
-
             this.client.AppId = photonConfig.AppId;
-
-            //_ = TryConnectToMasterServer(photonConfig.Region[0]);
         }
 
         ~PhotonService()
@@ -48,7 +48,7 @@ namespace GrpcService1
             this.client.RemoveCallbackTarget(this);
         }
 
-        private void OnStateChange(ClientState arg1, ClientState arg2)
+        void OnStateChange(ClientState arg1, ClientState arg2)
         {
             _logger.LogInformation($"PhotonStateChanges: {arg1} -> { arg2}");
         }
@@ -66,55 +66,18 @@ namespace GrpcService1
             _logger.LogDebug("PhotonService AsyncLoop Start@{time} ", DateTimeOffset.Now);
             while (!stoppingToken.IsCancellationRequested)
             {
-                this.client.Service();
-                await Task.Delay(33);
+                try
+                {
+                    this.client.Service();
+                    await Task.Delay(33);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Prevent throwing if the Delay is cancelled
+                }
             }
             _logger.LogDebug("PhotonService AsyncLoop End@{time} ", DateTimeOffset.Now);
         }
-
-        #region IConnectionCallbacks
-        void IConnectionCallbacks.OnConnected()
-        {
-            _logger.LogDebug("OnConnected");
-        }
-
-        void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
-        {
-            _logger.LogDebug($"OnDisconnected {cause}");
-            connectionTCS?.TrySetResult(false);
-        }
-
-        void IConnectionCallbacks.OnConnectedToMaster()
-        {
-            _logger.LogDebug($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
-
-            connectionTCS?.TrySetResult(true);
-
-            this.client.OpJoinLobby(new TypedLobby("default", LobbyType.Default));
-        }
-
-        #region Authentication
-        void IConnectionCallbacks.OnCustomAuthenticationFailed(string debugMessage)
-        {
-            _logger.LogWarning($"OnCustomAuthenticationFailed {debugMessage}");
-            connectionTCS?.TrySetResult(false);
-
-            AuthService.CleanOauthResponse();
-        }
-
-        void IConnectionCallbacks.OnCustomAuthenticationResponse(Dictionary<string, object> data)
-        {
-            _logger.LogWarning($"OnCustomAuthenticationResponse");
-            foreach(var kvp in data)
-                _logger.LogWarning($"{kvp.Key}:{kvp.Value}");
-        }
-        #endregion
-
-        void IConnectionCallbacks.OnRegionListReceived(RegionHandler regionHandler)
-        {
-            _logger.LogDebug("OnRegionListReceived");
-        }
-        #endregion
 
         TaskCompletionSource<bool> connectionTCS;
         public async Task TryConnectToMasterServer(string targetRegion, CancellationToken stoppingToken)
@@ -186,7 +149,51 @@ namespace GrpcService1
             return true;
         }
 
-        #region ILobbyCallbacks
+        #region Photon IConnectionCallbacks
+        void IConnectionCallbacks.OnConnected()
+        {
+            _logger.LogDebug("OnConnected");
+        }
+
+        void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
+        {
+            _logger.LogDebug($"OnDisconnected {cause}");
+            connectionTCS?.TrySetResult(false);
+        }
+
+        void IConnectionCallbacks.OnConnectedToMaster()
+        {
+            _logger.LogDebug($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
+
+            connectionTCS?.TrySetResult(true);
+
+            this.client.OpJoinLobby(new TypedLobby("default", LobbyType.Default));
+        }
+
+        #region Authentication
+        void IConnectionCallbacks.OnCustomAuthenticationFailed(string debugMessage)
+        {
+            _logger.LogWarning($"OnCustomAuthenticationFailed {debugMessage}");
+            connectionTCS?.TrySetResult(false);
+
+            AuthService.CleanOauthResponse();
+        }
+
+        void IConnectionCallbacks.OnCustomAuthenticationResponse(Dictionary<string, object> data)
+        {
+            _logger.LogWarning($"OnCustomAuthenticationResponse");
+            foreach(var kvp in data)
+                _logger.LogWarning($"{kvp.Key}:{kvp.Value}");
+        }
+        #endregion
+
+        void IConnectionCallbacks.OnRegionListReceived(RegionHandler regionHandler)
+        {
+            _logger.LogDebug("OnRegionListReceived");
+        }
+        #endregion
+
+        #region Photon ILobbyCallbacks
         void ILobbyCallbacks.OnJoinedLobby()
         {
             _logger.LogDebug("OnJoinedLobby");
@@ -200,7 +207,10 @@ namespace GrpcService1
         void ILobbyCallbacks.OnRoomListUpdate(List<RoomInfo> roomList)
         {
             _logger.LogDebug($"OnRoomListUpdate {roomList.Count}");
-            UpdateCachedRoomList(roomList);
+            photonRoomListStorage?.UpdateCachedRoomList(roomList);
+
+            if(photonConfig.ShowOnConsole)
+                ShowOnConsole(true);
         }
 
         void ILobbyCallbacks.OnLobbyStatisticsUpdate(List<TypedLobbyInfo> lobbyStatistics)
@@ -209,55 +219,7 @@ namespace GrpcService1
         }
         #endregion
 
-        private Dictionary<string, RoomInfo> cachedRoomList = new Dictionary<string, RoomInfo>();
-        public RegionInGameUserCount GetAllCachedRoom()
-        {
-            var res = new RegionInGameUserCount() { 
-                region=this.client.CloudRegion.TrimEnd('/','*'),
-            };
-
-            //_logger.LogDebug($"GetAllCachedRoom Begin");
-
-            List<InGameUserCount> iguc = new List<InGameUserCount>();
-            foreach (var kvp in cachedRoomList)
-            {
-                var info = kvp.Value;
-                iguc.Add(new InGameUserCount() {
-                    roomName=info.Name,
-                    count=info.PlayerCount
-                });
-            }
-
-            res.uCounts = iguc.ToArray();
-
-            return res;
-        }
-
-        private void UpdateCachedRoomList(List<RoomInfo> roomList)
-        {
-            for (int i = 0; i < roomList.Count; i++)
-            {
-                RoomInfo info = roomList[i];
-                _logger.LogDebug($"UpdateCachedRoomList {i} mc:{info.masterClientId}:" + info.ToStringFull());
-
-                if (info.RemovedFromList)
-                {
-                    cachedRoomList.Remove(info.Name);
-                }
-                else
-                {
-                    cachedRoomList[info.Name] = info;
-                }
-            }
-
-            var res = GetAllCachedRoom();
-
-            var resString = JsonConvert.SerializeObject(res, Formatting.Indented);
-            //Console.Clear();
-            _logger.LogInformation($"{DateTimeOffset.Now} \n {resString}");
-            
-        }
-
+        #region Getter
         bool ShouldTryConnectMaster()
         {
             if (this.client == null)
@@ -277,20 +239,33 @@ namespace GrpcService1
 
             return false;
         }
-    }
 
-    [System.Serializable]
-    public class RegionInGameUserCount
-    {
-        public string region;
-        public InGameUserCount[] uCounts;
-    }
+        string TryGetRegion()
+        {
+            return this.client.CloudRegion.TrimEnd('/', '*');
+        }
+        #endregion
 
-    [System.Serializable]
-    public class InGameUserCount
-    {
-        public string roomName;
-        public int count;
-    }
+        #region 
+        void ShowOnConsole(bool clearConsole = false)
+        {
+            try
+            {
+                var resString = JsonConvert.SerializeObject(
+                    photonRoomListStorage.GetAllCachedRoom(TryGetRegion()), 
+                    Formatting.Indented
+                );
 
+                if (clearConsole)
+                    Console.Clear();
+
+                _logger.LogInformation($"{DateTimeOffset.Now} \n {resString}");
+            }
+            catch (Exception e)
+            {
+                _logger.LogWarning($"Exception: {e.ToString()} {DateTimeOffset.Now}");
+            }
+        }
+        #endregion
+    }
 }

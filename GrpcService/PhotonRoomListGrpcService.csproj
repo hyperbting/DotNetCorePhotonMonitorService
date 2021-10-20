@@ -45,4 +45,9 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Interfaces\IStorages\" />
+    <Folder Include="Models\Storages\" />
+  </ItemGroup>
+
 </Project>

@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using PhotonRoomListGrpcService.Models.Storages;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace GrpcService1
+namespace PhotonRoomListGrpcService
 {
     public class Startup
     {
@@ -25,6 +26,11 @@ namespace GrpcService1
             //services.AddHostedService<MqttService>();
 
             //services.AddGrpc();
+
+            services.AddSingleton<IRoomList>(_ =>
+            {
+                return new PhotonRooms();
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

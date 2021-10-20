@@ -11,8 +11,9 @@ using MQTTnet.Client;
 using MQTTnet.Client.Options;
 using System.Text;
 using MQTTnet.Client.Subscribing;
+using PhotonRoomListGrpcService.Configs;
 
-namespace GrpcService1
+namespace PhotonRoomListGrpcService
 {
     public class MqttService : BackgroundService
     {

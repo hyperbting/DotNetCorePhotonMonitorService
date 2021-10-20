@@ -1,29 +1,32 @@
 ﻿using Newtonsoft.Json;
 
-[System.Serializable]
-public class OauthResponse
+namespace PhotonRoomListGrpcService.Models
 {
-    public static OauthResponse BuildOauthResponse(string txt)
+    [System.Serializable]
+    public class OauthResponse
     {
-        OauthResponse res = JsonConvert.DeserializeObject<OauthResponse>(txt);
+        public static OauthResponse BuildOauthResponse(string txt)
+        {
+            OauthResponse res = JsonConvert.DeserializeObject<OauthResponse>(txt);
 
-        return res;
-    }
+            return res;
+        }
 
-    public string access_token;
-    public string id_token;
-    public string scope;
-    public string token_type;
-    public int expires_in;
+        public string access_token;
+        public string id_token;
+        public string scope;
+        public string token_type;
+        public int expires_in;
 
-    public string error;
-    public string error_description;
+        public string error;
+        public string error_description;
 
-    public bool IsValid() 
-    {
-        if (!string.IsNullOrEmpty(error) || !string.IsNullOrEmpty(error_description))
-            return false;
+        public bool IsValid()
+        {
+            if (!string.IsNullOrEmpty(error) || !string.IsNullOrEmpty(error_description))
+                return false;
 
-        return true;
+            return true;
+        }
     }
 }

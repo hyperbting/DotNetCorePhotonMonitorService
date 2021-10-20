@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using PhotonRoomListGrpcService.Configs;
+using PhotonRoomListGrpcService.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -9,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace GrpcService1
+namespace PhotonRoomListGrpcService
 {
     public class AuthService: BackgroundService
     {
