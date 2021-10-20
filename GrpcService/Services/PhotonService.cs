@@ -7,8 +7,10 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
 using Photon.Realtime;
+
 using PhotonRoomListGrpcService.Configs;
 using PhotonRoomListGrpcService.Interfaces.IStorages;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -16,7 +18,7 @@ using System.Threading.Tasks;
 
 namespace PhotonRoomListGrpcService
 {
-    public class PhotonService : BackgroundService, IConnectionCallbacks, ILobbyCallbacks//, IInRoomCallbacks, IMatchmakingCallbacks
+    public class PhotonService : BackgroundService, IConnectionCallbacks, ILobbyCallbacks
     {
         private readonly ILogger<PhotonService> _logger;
         private readonly PhotonConfig photonConfig;
@@ -209,7 +211,7 @@ namespace PhotonRoomListGrpcService
         void ILobbyCallbacks.OnRoomListUpdate(List<RoomInfo> roomList)
         {
             _logger.LogDebug($"OnRoomListUpdate {roomList.Count}");
-            photonRoomListStorage?.UpdateCachedRoomList(roomList);
+            photonRoomListStorage?.OnPhotonRoomListUpdated(roomList);
 
             if(photonConfig.ShowOnConsole)
                 ShowOnConsole(true);
@@ -253,10 +255,11 @@ namespace PhotonRoomListGrpcService
         {
             try
             {
-                var resString = JsonConvert.SerializeObject(
-                    photonRoomListStorage.GetAllCachedRoom(TryGetRegion()), 
-                    Formatting.Indented
-                );
+
+                var res = photonRoomListStorage.GetAllCachedRoom();
+                res.region = TryGetRegion();
+
+                var resString = JsonConvert.SerializeObject(res, Formatting.Indented);
 
                 if (clearConsole)
                     Console.Clear();

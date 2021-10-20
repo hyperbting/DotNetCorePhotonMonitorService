@@ -1,5 +1,7 @@
 using Photon.Realtime;
+
 using PhotonRoomListGrpcService.Interfaces.IStorages;
+
 using System;
 using System.Collections.Generic;
 
@@ -7,33 +9,28 @@ namespace PhotonRoomListGrpcService.Models.Storages
 {
     public class PhotonRooms : IRoomList
     {
-        private Dictionary<string, RoomInfo> cachedRoomList;
-
-        private string assignedRegion = "";
+        private readonly Dictionary<string, RoomInfo> cachedRoomList;
 
         public PhotonRooms()
         {
             cachedRoomList = new Dictionary<string, RoomInfo>();
+            OnPhotonRoomListUpdated += UpdateCachedRoomList;
         }
 
         ~PhotonRooms()
         {
+            OnPhotonRoomListUpdated -= UpdateCachedRoomList;
             cachedRoomList.Clear();
         }
 
-        public RegionInGameUserCount GetAllCachedRoom(string tarRegion = "")
+        #region IRoomList
+        public Action<List<RoomInfo>> OnPhotonRoomListUpdated { get; set; }
+        public RegionInGameUserCount GetAllCachedRoom()
         {
-            if (!string.IsNullOrWhiteSpace(tarRegion))
-            {
-                assignedRegion = tarRegion;
-            }
 
-            var res = new RegionInGameUserCount()
-            {
-                region = assignedRegion,
-            };
+            var res = new RegionInGameUserCount();
 
-            List<InGameUserCount> iguc = new List<InGameUserCount>();
+            List<InGameUserCount> iguc = new();
             foreach (var kvp in cachedRoomList)
             {
                 var info = kvp.Value;
@@ -48,8 +45,9 @@ namespace PhotonRoomListGrpcService.Models.Storages
 
             return res;
         }
+        #endregion
 
-        public void UpdateCachedRoomList(List<RoomInfo> roomList)
+        void UpdateCachedRoomList(List<RoomInfo> roomList)
         {
             for (int i = 0; i < roomList.Count; i++)
             {

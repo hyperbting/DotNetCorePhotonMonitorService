@@ -1,5 +1,8 @@
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+
+using PhotonRoomListGrpcService.Interfaces.IStorages;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,9 +16,12 @@ namespace PhotonRoomListGrpcService
     public class ReporterService : ReportPhotonRoom.ReportPhotonRoomBase
     {
         private readonly ILogger<ReporterService> _logger;
-        public ReporterService(ILogger<ReporterService> logger)
+        private readonly IRoomList photonRoomListStorage;
+        public ReporterService(ILogger<ReporterService> logger, IRoomList roomListStorage)
         {
             _logger = logger;
+
+            photonRoomListStorage = roomListStorage;
         }
 
         public override Task<RoomListReply> RequestRoomList(RoomListRequest request, ServerCallContext context)

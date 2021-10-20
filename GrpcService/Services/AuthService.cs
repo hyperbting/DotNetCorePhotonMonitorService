@@ -16,7 +16,7 @@ namespace PhotonRoomListGrpcService
     public class AuthService: BackgroundService
     {
         private readonly ILogger<AuthService> _logger;
-        AuthConfig authConfig;
+        private readonly AuthConfig authConfig;
 
         private readonly IAccountStorage accountStorage;
 

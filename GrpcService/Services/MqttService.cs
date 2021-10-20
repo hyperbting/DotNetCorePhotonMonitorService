@@ -18,7 +18,7 @@ namespace PhotonRoomListGrpcService
     public class MqttService : BackgroundService
     {
         private readonly ILogger<MqttService> _logger;
-        private MQTTConfig mqttConfig;
+        private readonly MQTTConfig mqttConfig;
 
         CancellationTokenSource createMQTTClientToken;
 
