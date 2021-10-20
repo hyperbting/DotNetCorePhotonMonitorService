@@ -15,30 +15,16 @@ namespace PhotonRoomListGrpcService
 {
     public class AuthService: BackgroundService
     {
-        #region OauthResponse
-        public static OauthResponse oauthResp;
-        public static void CleanOauthResponse()
-        {
-            oauthResp = null;
-        }
-
-        public static bool TryGetAuthInfo(out string jwtstring)
-        {
-            jwtstring = "";
-
-            if (oauthResp == null)
-                return false;
-
-            jwtstring = oauthResp.access_token;
-            return true;
-        }
-        #endregion OauthResponse
-
         private readonly ILogger<AuthService> _logger;
         AuthConfig authConfig;
-        public AuthService(ILogger<AuthService> logger , IConfiguration aConfig )
+
+        private readonly IAccountStorage accountStorage;
+
+        public AuthService(ILogger<AuthService> logger , IConfiguration aConfig, IAccountStorage accStore)
         {
             _logger = logger;
+
+            accountStorage = accStore;
 
             authConfig = new AuthConfig();
             aConfig.GetSection(AuthConfig.Auth).Bind(authConfig);
@@ -58,7 +44,7 @@ namespace PhotonRoomListGrpcService
                 //_logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                 try
                 {
-                    if (AuthService.oauthResp == null)
+                    if (!accountStorage.IsValid)
                         await PostAuth();
 
                     await Task.Delay(1000, stoppingToken);
@@ -83,21 +69,26 @@ namespace PhotonRoomListGrpcService
                 return;
             }
 
-            var response = await hclient.PostAsync(authConfig.OauthAddress, new FormUrlEncodedContent(authConfig.BuildRequest()));
+            var response = await hclient.PostAsync(
+                authConfig.OauthAddress, 
+                new FormUrlEncodedContent(authConfig.BuildRequest())
+            );
 
             var responseString = await response.Content.ReadAsStringAsync();
 
             _logger.LogDebug(responseString);
 
-            AuthService.oauthResp = JsonConvert.DeserializeObject<OauthResponse>(responseString);
-            if (!AuthService.oauthResp.IsValid())
+            accountStorage.Store(JsonConvert.DeserializeObject<OauthResponse>(responseString));
+            if (!accountStorage.IsValid)
             { 
-                _logger.LogWarning($"AuthService.PostAuth AuthNotValid");
-                AuthService.CleanOauthResponse();
+                _logger.LogWarning($"AuthService.PostAuth ResultNotValid");
+                accountStorage.Clean();
                 await Task.Delay(5000);
+
+                return;
             }
 
-            _logger.LogDebug($"{oauthResp}");
+            _logger.LogDebug($"{responseString}");
         }
     }
 }

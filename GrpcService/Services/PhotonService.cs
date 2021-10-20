@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 
 using Photon.Realtime;
 using PhotonRoomListGrpcService.Configs;
-
+using PhotonRoomListGrpcService.Interfaces.IStorages;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -21,10 +21,11 @@ namespace PhotonRoomListGrpcService
         private readonly ILogger<PhotonService> _logger;
         private readonly PhotonConfig photonConfig;
         private readonly IRoomList photonRoomListStorage;
+        private readonly IAccountStorage accountStorage;
 
         private readonly LoadBalancingClient client = new LoadBalancingClient();
 
-        public PhotonService(ILogger<PhotonService> logger, IConfiguration phoConfig, IRoomList roomListStorage)
+        public PhotonService(ILogger<PhotonService> logger, IConfiguration phoConfig, IRoomList roomListStorage, IAccountStorage accStore)
         {
             _logger = logger;
             _logger.LogInformation("PhotonService Start @{time}", DateTimeOffset.Now);
@@ -33,6 +34,7 @@ namespace PhotonRoomListGrpcService
             phoConfig.GetSection(PhotonConfig.Photon).Bind(photonConfig);
 
             photonRoomListStorage = roomListStorage;
+            accountStorage = accStore;
 
             this.client.AddCallbackTarget(this);
             this.client.StateChanged += this.OnStateChange;
@@ -92,7 +94,7 @@ namespace PhotonRoomListGrpcService
                 }
 
                 var jwtString = "";
-                if (!AuthService.TryGetAuthInfo(out jwtString))
+                if (!accountStorage.TryGetAuthInfo(out jwtString))
                 {
                     _logger.LogDebug($"TryConnectToMasterServer NoAuthFound {this.client.State}");
                     await Task.Delay(1000);
@@ -176,7 +178,7 @@ namespace PhotonRoomListGrpcService
             _logger.LogWarning($"OnCustomAuthenticationFailed {debugMessage}");
             connectionTCS?.TrySetResult(false);
 
-            AuthService.CleanOauthResponse();
+            accountStorage.Clean();
         }
 
         void IConnectionCallbacks.OnCustomAuthenticationResponse(Dictionary<string, object> data)

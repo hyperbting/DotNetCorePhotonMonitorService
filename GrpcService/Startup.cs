@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using PhotonRoomListGrpcService.Interfaces.IStorages;
 using PhotonRoomListGrpcService.Models.Storages;
 using System;
 using System.Collections.Generic;
@@ -27,10 +28,9 @@ namespace PhotonRoomListGrpcService
 
             //services.AddGrpc();
 
-            services.AddSingleton<IRoomList>(_ =>
-            {
-                return new PhotonRooms();
-            });
+            //// shared data between Services
+            services.AddSingleton<IRoomList>(_ => new PhotonRooms());
+            services.AddSingleton<IAccountStorage>(_ => new OauthAccount());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
