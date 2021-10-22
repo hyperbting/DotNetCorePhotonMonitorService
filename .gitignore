@@ -43,3 +43,7 @@ ExportedObj/
 GrpcService/appsettings.*.json
 GrpcService/bin/
 GrpcService/obj/
+
+APIGate/appsettings.*.json
+APIGate/bin/
+APIGate/obj/
