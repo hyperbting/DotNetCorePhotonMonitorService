@@ -11,11 +11,14 @@ namespace PhotonRoomListGrpcService.Models.Storages
     {        
         private readonly Dictionary<string, RoomInfo> cachedRoomList;
 
-        private PhotonRegion targetPhotonRegion = PhotonRegion.Unknown;
-        private PhotonRegion photonRegion = PhotonRegion.Unknown;
+        private PhotonRegion targetPhotonRegion;
+        private PhotonRegion photonRegion;
 
         public PhotonRooms()
         {
+            targetPhotonRegion = PhotonRegion.Unknown;
+            photonRegion = PhotonRegion.Unknown;
+            
             cachedRoomList = new Dictionary<string, RoomInfo>();
             OnPhotonRoomListUpdated += UpdateCachedRoomList;
         }
@@ -30,7 +33,7 @@ namespace PhotonRoomListGrpcService.Models.Storages
         public Action<string, string> OnTargetPhotonRegionChanged { get; set; }
         public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.UtcNow;
 
-        #region Region
+        #region Target/ Current Region
         public string TargetPhotonRegion
         {
             get 
@@ -124,5 +127,4 @@ namespace PhotonRoomListGrpcService.Models.Storages
             };
         }
     }
-
 }
