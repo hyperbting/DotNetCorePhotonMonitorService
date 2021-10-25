@@ -74,12 +74,12 @@ namespace PhotonRoomListGrpcService.Models.Storages
         public Action<List<RoomInfo>> OnPhotonRoomListUpdated { get; set; }
         public RegionInGameUserCount GetAllCachedRoom()
         {
-            var res = new RegionInGameUserCount()
+            RegionInGameUserCount regInGameuCount = new()
             {
                 Region = photonRegion,
             };
 
-            res.SetLastUpdate(LastUpdated);
+            regInGameuCount.SetLastUpdate(LastUpdated);
 
             List<InGameUserCount> iguc = new();
             foreach (var kvp in cachedRoomList)
@@ -87,9 +87,9 @@ namespace PhotonRoomListGrpcService.Models.Storages
                 iguc.Add(kvp.Value.ToInGameUserCount());
             }
 
-            res.uCounts = iguc.ToArray();
+            regInGameuCount.uCounts = iguc.ToArray();
 
-            return res;
+            return regInGameuCount;
         }
         #endregion
 
