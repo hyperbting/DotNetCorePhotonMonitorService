@@ -5,8 +5,6 @@ VisualStudioVersion = 16.0.31702.278
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PhotonRoomListGrpcService", "GrpcService\PhotonRoomListGrpcService.csproj", "{A1BE582F-977C-485F-868C-0CDCDA827A56}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "APIGate", "APIGate\APIGate.csproj", "{27B65350-0D36-4274-BFD8-319DE3789675}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,12 +18,6 @@ Global
 		{A1BE582F-977C-485F-868C-0CDCDA827A56}.MacDebug|Any CPU.Build.0 = MacDebug|Any CPU
 		{A1BE582F-977C-485F-868C-0CDCDA827A56}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A1BE582F-977C-485F-868C-0CDCDA827A56}.Release|Any CPU.Build.0 = Release|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.MacDebug|Any CPU.ActiveCfg = Debug|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.MacDebug|Any CPU.Build.0 = Debug|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{27B65350-0D36-4274-BFD8-319DE3789675}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
