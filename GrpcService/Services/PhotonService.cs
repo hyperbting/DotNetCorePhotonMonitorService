@@ -20,24 +20,36 @@ namespace PhotonRoomListGrpcService
 {
     public class PhotonService : BackgroundService, IConnectionCallbacks, ILobbyCallbacks
     {
+        private readonly string serviceName;
+
         private readonly ILogger<PhotonService> _logger;
         private readonly PhotonConfig photonConfig;
         private readonly IRoomList photonRoomListStorage;
         private readonly IAccountStorage accountStorage;
 
-        private readonly LoadBalancingClient client = new LoadBalancingClient();
+        private readonly LoadBalancingClient client = new();
 
         public PhotonService(ILogger<PhotonService> logger, IConfiguration phoConfig, IRoomList roomListStorage, IAccountStorage accStore)
         {
-            _logger = logger;
-            _logger.LogInformation("PhotonService Start @{time}", DateTimeOffset.Now);
+            serviceName = this.GetType().ToString();
 
+            //Log
+            _logger = logger;
+            _logger.LogInformation("{serviceName} Start @{time}", serviceName, DateTimeOffset.Now);
+
+            //Config
             photonConfig = new PhotonConfig();
             phoConfig.GetSection(PhotonConfig.Photon).Bind(photonConfig);
 
+            //Storage
             photonRoomListStorage = roomListStorage;
+            // Default TargetRegion come from Config
+            photonRoomListStorage.TargetPhotonRegion = photonConfig.Region[0];
+
+            //Account
             accountStorage = accStore;
 
+            //Photon
             this.client.AddCallbackTarget(this);
             this.client.StateChanged += this.OnStateChange;
 
@@ -46,7 +58,7 @@ namespace PhotonRoomListGrpcService
 
         ~PhotonService()
         {
-            _logger.LogInformation("PhotonService End @{time}", DateTimeOffset.Now);
+            _logger.LogInformation("{serviceName} End @{time}", serviceName, DateTimeOffset.Now);
 
             this.client.Disconnect();
             this.client.RemoveCallbackTarget(this);
@@ -59,39 +71,49 @@ namespace PhotonRoomListGrpcService
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("PhotonService ExecuteAsync@{time} ", DateTimeOffset.Now);
+            _logger.LogInformation("ExecuteAsync@{time} ", DateTimeOffset.Now);
             _ = AsyncLoop(stoppingToken);
 
-            _ = TryConnectToMasterServer(photonConfig.Region[0], stoppingToken);            
+            _ = TryConnectToMasterServer(stoppingToken);
         }
 
         async Task AsyncLoop(CancellationToken stoppingToken)
         {
-            _logger.LogDebug("PhotonService AsyncLoop Start@{time} ", DateTimeOffset.Now);
+            _logger.LogDebug("AsyncLoop Start@{time} ", DateTimeOffset.Now);
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     this.client.Service();
-                    await Task.Delay(33);
+                    await Task.Delay(33, stoppingToken);
+
+                    if (!this.client.IsConnectedAndReady || !this.client.InLobby)
+                        continue;
+
+                    // Only InLobby should Check target/current Region Difference
+                    if (!photonRoomListStorage.IsRegionMatching())
+                    {
+                        _logger.LogWarning("AsyncLoop Disconnect@{time} for RegionChange", DateTimeOffset.Now);
+                        this.client.Disconnect();
+                    }
                 }
                 catch (OperationCanceledException)
                 {
                     // Prevent throwing if the Delay is cancelled
                 }
             }
-            _logger.LogDebug("PhotonService AsyncLoop End@{time} ", DateTimeOffset.Now);
+            _logger.LogDebug("AsyncLoop End@{time} ", DateTimeOffset.Now);
         }
 
         TaskCompletionSource<bool> connectionTCS;
-        public async Task TryConnectToMasterServer(string targetRegion, CancellationToken stoppingToken)
+        async Task TryConnectToMasterServer(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {
                 if (this.client.IsConnectedAndReady)
                 {
                     _logger.LogDebug($"TryConnectToMasterServer AlreadyInServer {this.client.State}");
-                    await Task.Delay(1000);
+                    await Task.Delay(1000, stoppingToken);
                     continue;
                 }
 
@@ -99,7 +121,7 @@ namespace PhotonRoomListGrpcService
                 if (!accountStorage.TryGetAuthInfo(out jwtString))
                 {
                     _logger.LogDebug($"TryConnectToMasterServer NoAuthFound {this.client.State}");
-                    await Task.Delay(1000);
+                    await Task.Delay(1000, stoppingToken);
                     continue;
                 }
 
@@ -109,7 +131,9 @@ namespace PhotonRoomListGrpcService
                 TrySetAuthenticationValues(jwtString);
 
                 connectionTCS = new TaskCompletionSource<bool>();
-                this.client.ConnectToRegionMaster(targetRegion);
+
+                // ConnectToRegionMaster To photonRoomListStorage.TargetPhotonRegion
+                this.client.ConnectToRegionMaster(photonRoomListStorage.TargetPhotonRegion);
 
                 var cts = new CancellationTokenSource();
                 cts.CancelAfter(10000);
@@ -120,7 +144,7 @@ namespace PhotonRoomListGrpcService
                 {
                     try
                     {
-                        await Task.Delay(100);
+                        await Task.Delay(100, cts.Token);
                     }
                     catch (TaskCanceledException)
                     {
@@ -131,7 +155,7 @@ namespace PhotonRoomListGrpcService
                     }
                 }
 
-                await Task.Delay(3000);
+                await Task.Delay(3000, stoppingToken);
             }
         }
 
@@ -167,7 +191,9 @@ namespace PhotonRoomListGrpcService
 
         void IConnectionCallbacks.OnConnectedToMaster()
         {
-            _logger.LogDebug($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {this.client.CloudRegion}");
+            var curRegion = TryGetRegion();
+            _logger.LogWarning($"OnConnectedToMaster Server: {this.client.LoadBalancingPeer.ServerIpAddress} Region: {curRegion}");
+            photonRoomListStorage.CurrentPhotonRegion = curRegion;
 
             connectionTCS?.TrySetResult(true);
 
@@ -237,7 +263,7 @@ namespace PhotonRoomListGrpcService
                 case ClientState.Disconnected:
                     return true;
                 default:
-                    _logger.LogDebug($"ShouldTryConnectMaster @{ this.client.State.ToString()}");
+                    _logger.LogDebug(message: $"ShouldTryConnectMaster @{ this.client.State}");
                     break;
             }
 
@@ -257,14 +283,14 @@ namespace PhotonRoomListGrpcService
             {
 
                 var res = photonRoomListStorage.GetAllCachedRoom();
-                res.region = TryGetRegion();
+                //res.SetShouldSerializeCurrentTimestamp(true);
 
-                var resString = JsonConvert.SerializeObject(res, Formatting.Indented);
+                res.SetShouldSerializeRegionStringInstead(true);
 
                 if (clearConsole)
                     Console.Clear();
 
-                _logger.LogInformation($"{DateTimeOffset.Now} \n {resString}");
+                _logger.LogInformation($"\n{DateTimeOffset.Now} [{DateTimeOffset.Now.ToUniversalTime()}]\n{res}");
             }
             catch (Exception e)
             {

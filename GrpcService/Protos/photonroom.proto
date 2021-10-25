@@ -4,15 +4,66 @@ option csharp_namespace = "PhotonRoomListGrpcService";
 
 package photonroom;
 
+//import "google/protobuf/any.proto";
+import "google/protobuf/Timestamp.proto";
+
 service ReportPhotonRoom {
+
+  // Force the region setting
+  rpc RequestRegionSet (RegionSetRequest) returns (RegionSetReply);
+
+  // Get Current Copy of RoomList
   rpc RequestRoomList (RoomListRequest) returns (RoomListReply);
+
+  //// 
+  //rpc RequestRoomListUpdateSubscription (RoomListRequest) returns (stream RoomListReply);
+
+  ////
+  //rpc RequestRoomListSubscription (RoomListRequest) returns (stream RoomListReply);
+}
+
+enum PhotonRegion {
+  UNKNOWN = 0;
+  JP = 1;
+  ASIA = 2;
+  AU = 3;
+  US = 4;
+  USW = 5;
+  CAE = 6;
+  
+  EU = 30;
+  SA = 31;
+  RU = 32;
+  RUE = 33;
+  ZA = 34;
+
+  CN = 50;
+}
+
+message RegionSetRequest {
+  PhotonRegion region = 1;
+}
+
+message RegionSetReply {
+  PhotonRegion region = 1;
+
+  google.protobuf.Timestamp last_updated = 10;
 }
 
 message RoomListRequest {
-  string region = 1;
+  PhotonRegion region = 1;
 }
 
 message RoomListReply {
-  string region = 1;
-  map<string, int32> count = 2;
+  PhotonRegion region = 1;
+
+  // store roomName: headCount
+  repeated InGameUserCount room_user_count = 2;
+
+  google.protobuf.Timestamp last_updated = 10;
+}
+
+message InGameUserCount {
+  string roomName = 1;
+  int32 count = 2;
 }

@@ -26,7 +26,7 @@ namespace PhotonRoomListGrpcService
 
             //services.AddHostedService<MqttService>();
 
-            //services.AddGrpc();
+            services.AddGrpc();
 
             //// shared data between Services
             services.AddSingleton<IRoomList>(_ => new PhotonRooms());

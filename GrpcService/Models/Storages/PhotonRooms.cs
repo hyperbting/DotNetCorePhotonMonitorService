@@ -8,8 +8,11 @@ using System.Collections.Generic;
 namespace PhotonRoomListGrpcService.Models.Storages
 {
     public class PhotonRooms : IRoomList
-    {
+    {        
         private readonly Dictionary<string, RoomInfo> cachedRoomList;
+
+        private PhotonRegion targetPhotonRegion = PhotonRegion.Unknown;
+        private PhotonRegion photonRegion = PhotonRegion.Unknown;
 
         public PhotonRooms()
         {
@@ -24,21 +27,64 @@ namespace PhotonRoomListGrpcService.Models.Storages
         }
 
         #region IRoomList
+        public Action<string, string> OnTargetPhotonRegionChanged { get; set; }
+        public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.UtcNow;
+
+        #region Region
+        public string TargetPhotonRegion
+        {
+            get 
+            {
+                return targetPhotonRegion.ToString();
+            }
+            set 
+            {
+                Enum.TryParse(value, true, out targetPhotonRegion);
+
+                if (!IsRegionMatching())
+                {
+                    OnTargetPhotonRegionChanged?.Invoke(photonRegion.ToString(), targetPhotonRegion.ToString());
+                }
+            }
+        }
+
+        public string CurrentPhotonRegion
+        {
+            get
+            {
+                return photonRegion.ToString();
+            }
+            set
+            {
+                Enum.TryParse(value, true, out photonRegion);
+            }
+        }
+
+        public bool IsRegionMatching()
+        {
+            if (targetPhotonRegion != photonRegion)
+            {
+                return false;
+            }
+
+            return true;
+        }
+        #endregion
+
         public Action<List<RoomInfo>> OnPhotonRoomListUpdated { get; set; }
         public RegionInGameUserCount GetAllCachedRoom()
         {
+            var res = new RegionInGameUserCount()
+            {
+                Region = photonRegion,
+            };
 
-            var res = new RegionInGameUserCount();
+            res.SetLastUpdate(LastUpdated);
 
             List<InGameUserCount> iguc = new();
             foreach (var kvp in cachedRoomList)
             {
-                var info = kvp.Value;
-                iguc.Add(new InGameUserCount()
-                {
-                    roomName = info.Name,
-                    count = info.PlayerCount
-                });
+                iguc.Add(kvp.Value.ToInGameUserCount());
             }
 
             res.uCounts = iguc.ToArray();
@@ -62,20 +108,21 @@ namespace PhotonRoomListGrpcService.Models.Storages
                     cachedRoomList[info.Name] = info;
                 }
             }
-        }
 
-        [Serializable]
-        public class RegionInGameUserCount
-        {
-            public string region;
-            public InGameUserCount[] uCounts;
-        }
-
-        [Serializable]
-        public class InGameUserCount
-        {
-            public string roomName;
-            public int count;
+            LastUpdated = DateTimeOffset.Now;
         }
     }
+
+    public static class RoomInfoExtension
+    {
+        public static InGameUserCount ToInGameUserCount(this RoomInfo pri)
+        {
+            return new InGameUserCount()
+            {
+                RoomName = pri.Name,
+                Count = pri.PlayerCount
+            };
+        }
+    }
+
 }
