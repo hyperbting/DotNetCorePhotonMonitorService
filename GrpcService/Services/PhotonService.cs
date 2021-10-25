@@ -35,7 +35,7 @@ namespace PhotonRoomListGrpcService
 
             //Log
             _logger = logger;
-            _logger.LogInformation("{serviceName} Start @{time}", serviceName, DateTimeOffset.Now);
+            _logger.LogInformation("Start @{time}", DateTimeOffset.Now);
 
             //Config
             photonConfig = new PhotonConfig();
@@ -58,7 +58,7 @@ namespace PhotonRoomListGrpcService
 
         ~PhotonService()
         {
-            _logger.LogInformation("{serviceName} End @{time}", serviceName, DateTimeOffset.Now);
+            _logger.LogInformation("End @{time}", DateTimeOffset.Now);
 
             this.client.Disconnect();
             this.client.RemoveCallbackTarget(this);
@@ -125,7 +125,7 @@ namespace PhotonRoomListGrpcService
                     continue;
                 }
 
-                _logger.LogInformation("PhotonService.TryConnectToMasterServer @{time} ", DateTimeOffset.Now);
+                _logger.LogInformation("TryConnectToMasterServer @{time} ", DateTimeOffset.Now);
 
                 _logger.LogDebug("TryConnectToMasterServer.TrySetAuthenticationValues");
                 TrySetAuthenticationValues(jwtString);
