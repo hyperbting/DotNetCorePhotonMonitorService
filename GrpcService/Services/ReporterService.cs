@@ -27,19 +27,26 @@ namespace PhotonRoomListGrpcService
 
         public override Task<RegionSetReply> RequestRegionSet(RegionSetRequest request, ServerCallContext context)
         {
-            return base.RequestRegionSet(request, context);
+            // set target
+            photonRoomListStorage.TargetPhotonRegion = request.Region.ToString();
+
+            var reply =  new RegionSetReply() {
+                Region = request.Region,
+                LastUpdated = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTimeOffset(photonRoomListStorage.LastUpdated),
+            };
+
+            return Task.FromResult(reply);
         }
 
         public override Task<RoomListReply> RequestRoomList(RoomListRequest request, ServerCallContext context)
         {
-            //return base.RequestRoomList(request, context);
-
             //photonRoomListStorage
             var pr = photonRoomListStorage.GetAllCachedRoom();
 
             var resp = new RoomListReply
             {
                 Region = pr.Region,
+                LastUpdated = pr.LastUpdate,
             };
 
             foreach (var uc in pr.uCounts)

@@ -18,8 +18,10 @@ namespace PhotonRoomListGrpcService.Models.Storages
         {
             targetPhotonRegion = PhotonRegion.Unknown;
             photonRegion = PhotonRegion.Unknown;
-            
-            cachedRoomList = new Dictionary<string, RoomInfo>();
+
+            cachedRoomList = new();
+
+            LastUpdated = DateTimeOffset.UtcNow;
             OnPhotonRoomListUpdated += UpdateCachedRoomList;
         }
 
@@ -31,7 +33,9 @@ namespace PhotonRoomListGrpcService.Models.Storages
 
         #region IRoomList
         public Action<string, string> OnTargetPhotonRegionChanged { get; set; }
-        public DateTimeOffset LastUpdated { get; set; } = DateTimeOffset.UtcNow;
+        public Action<string, string> OnPhotonRegionChanged { get; set; }
+
+        public DateTimeOffset LastUpdated { get; set; }
 
         #region Target/ Current Region
         public string TargetPhotonRegion
@@ -42,12 +46,12 @@ namespace PhotonRoomListGrpcService.Models.Storages
             }
             set 
             {
-                Enum.TryParse(value, true, out targetPhotonRegion);
-
-                if (!IsRegionMatching())
+                if (value.ToPhotonRegion(out PhotonRegion parsedRegion) && parsedRegion != targetPhotonRegion)
                 {
-                    OnTargetPhotonRegionChanged?.Invoke(photonRegion.ToString(), targetPhotonRegion.ToString());
-                }
+                    OnTargetPhotonRegionChanged?.Invoke(targetPhotonRegion.ToString(), value);
+
+                    targetPhotonRegion = parsedRegion;
+                }               
             }
         }
 
@@ -59,7 +63,12 @@ namespace PhotonRoomListGrpcService.Models.Storages
             }
             set
             {
-                Enum.TryParse(value, true, out photonRegion);
+                if (value.ToPhotonRegion(out PhotonRegion parsedRegion) && parsedRegion != photonRegion)
+                {
+                    OnPhotonRegionChanged?.Invoke(photonRegion.ToString(), value);
+
+                    photonRegion = parsedRegion;
+                }
             }
         }
 
@@ -112,7 +121,7 @@ namespace PhotonRoomListGrpcService.Models.Storages
                 }
             }
 
-            LastUpdated = DateTimeOffset.Now;
+            LastUpdated = DateTimeOffset.UtcNow;
         }
     }
 
@@ -125,6 +134,14 @@ namespace PhotonRoomListGrpcService.Models.Storages
                 RoomName = pri.Name,
                 Count = pri.PlayerCount
             };
+        }
+    }
+
+    public static class PhotonRegionExtension
+    {
+        public static bool ToPhotonRegion(this String region, out PhotonRegion parsedRegion)
+        {
+            return Enum.TryParse(region, true, out parsedRegion);
         }
     }
 }
