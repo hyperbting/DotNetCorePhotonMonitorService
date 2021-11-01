@@ -51,6 +51,8 @@ namespace PhotonRoomListGrpcService.Models.Storages
                     OnTargetPhotonRegionChanged?.Invoke(targetPhotonRegion.ToString(), value);
 
                     targetPhotonRegion = parsedRegion;
+
+                    LastUpdated = DateTimeOffset.UtcNow;
                 }               
             }
         }
@@ -68,6 +70,8 @@ namespace PhotonRoomListGrpcService.Models.Storages
                     OnPhotonRegionChanged?.Invoke(photonRegion.ToString(), value);
 
                     photonRegion = parsedRegion;
+
+                    LastUpdated = DateTimeOffset.UtcNow;
                 }
             }
         }

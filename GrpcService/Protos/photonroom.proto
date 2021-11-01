@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 option csharp_namespace = "PhotonRoomListGrpcService";
-
+option go_package = "github.com/hyperbting/dotnetcorephotonmonitorservice/grpcservice/protos";
 package photonroom;
 
 //import "google/protobuf/any.proto";
