@@ -7,8 +7,7 @@ using Microsoft.Extensions.Options;
 using Photon.Realtime;
 
 using PhotonRoomListGrpcService.Configs;
-using PhotonRoomListGrpcService.Interfaces.IStorages;
-
+using PhotonRoomListGrpcService.Interfaces.Storages;
 using System;
 using System.Collections.Generic;
 using System.Threading;

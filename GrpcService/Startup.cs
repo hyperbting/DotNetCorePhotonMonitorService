@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PhotonRoomListGrpcService.Interfaces.IStorages;
+using PhotonRoomListGrpcService.Interfaces.Storages;
 using PhotonRoomListGrpcService.Models.Storages;
 using System;
 using System.Collections.Generic;

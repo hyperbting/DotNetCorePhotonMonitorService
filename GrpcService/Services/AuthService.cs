@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using PhotonRoomListGrpcService.Configs;
+using PhotonRoomListGrpcService.Interfaces.Storages;
 using PhotonRoomListGrpcService.Models;
 using System;
 using System.Collections.Generic;

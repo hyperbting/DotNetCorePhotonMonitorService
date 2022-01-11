@@ -1,6 +1,6 @@
 using Photon.Realtime;
 
-using PhotonRoomListGrpcService.Interfaces.IStorages;
+using PhotonRoomListGrpcService.Interfaces.Storages;
 
 using System;
 using System.Collections.Generic;

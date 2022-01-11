@@ -1,3 +1,5 @@
+using PhotonRoomListGrpcService.Interfaces.Storages;
+
 namespace PhotonRoomListGrpcService.Models.Storages
 {
     public class OauthAccount : IAccountStorage

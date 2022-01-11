@@ -1,7 +1,7 @@
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Converters;
-using PhotonRoomListGrpcService.Interfaces.IStorages;
+using PhotonRoomListGrpcService.Interfaces.Storages;
 
 using System;
 using System.Collections.Generic;

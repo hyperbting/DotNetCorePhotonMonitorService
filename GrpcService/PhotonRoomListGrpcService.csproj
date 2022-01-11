@@ -46,7 +46,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Interfaces\IStorages\" />
+    <Folder Include="Interfaces\Storages\" />
     <Folder Include="Models\Storages\" />
   </ItemGroup>
 

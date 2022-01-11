@@ -3,7 +3,7 @@ using Photon.Realtime;
 using System;
 using System.Collections.Generic;
 
-namespace PhotonRoomListGrpcService.Interfaces.IStorages
+namespace PhotonRoomListGrpcService.Interfaces.Storages
 {
     public interface IRoomList
     {
