@@ -129,8 +129,22 @@ namespace PhotonRoomListGrpcService
 
                 connectionTCS = new TaskCompletionSource<bool>();
 
-                // ConnectToRegionMaster To photonRoomListStorage.TargetPhotonRegion
-                this.client.ConnectToRegionMaster(photonRoomListStorage.TargetPhotonRegion);
+                if (photonConfig.TargetPhotonCloud)
+                {
+                    _logger.LogDebug("TryConnectToMasterServer Target is PhotonCloud");
+                    // ConnectToRegionMaster To photonRoomListStorage.TargetPhotonRegion
+                    this.client.ConnectToRegionMaster(photonRoomListStorage.TargetPhotonRegion);
+                }
+                else
+                {
+                    _logger.LogDebug("TryConnectToMasterServer Target is Standalone Server");
+                    var appSet = new AppSettings() { 
+                        UseNameServer = false,
+                        Server = photonConfig.SpecificIP,
+                        Port = 5055,
+                    };
+                    this.client.ConnectUsingSettings(appSet);
+                }
 
                 var cts = new CancellationTokenSource();
                 cts.CancelAfter(10000);
