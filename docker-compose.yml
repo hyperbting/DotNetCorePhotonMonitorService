@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  photonroomlistgrpcservice:
+    image: ${DOCKER_REGISTRY-}photonroomlistgrpcservice
+    build:
+      context: .
+      dockerfile: GrpcService/Dockerfile
